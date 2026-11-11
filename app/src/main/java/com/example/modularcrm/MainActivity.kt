@@ -135,11 +135,80 @@ class MainActivity:ComponentActivity() {
         }
     }) {
         Scaffold(
-            topBar={TopAppBar(title={Text(when(mode){"home"->"Modular Workspace";"plugin"->active?.name?:"Плагин";"manager"->"Плагины";else->"Настройки"},fontWeight=FontWeight.SemiBold)},navigationIcon={IconButton(onClick={scope.launch{drawer.open()}}){Icon(Icons.Default.Menu,"Открыть меню")}},actions={if(mode=="home")IconButton(onClick={mode="settings"}){Icon(Icons.Default.Settings,"Настройки")}},colors=TopAppBarDefaults.topAppBarColors(containerColor=MaterialTheme.colorScheme.background)} )},
-            bottomBar={if(mode=="plugin"&&pages.isNotEmpty())NavigationBar(containerColor=MaterialTheme.colorScheme.surface) {
-                pages.take(4).forEachIndexed {index,p-> NavigationBarItem(selected=p.str("id")==actualPage?.str("id"),onClick={pageId=p.str("id")},icon={Icon(when(index){0->Icons.Default.People;1->Icons.Default.CheckCircle;2->Icons.Default.CalendarMonth;else->Icons.Default.MoreHoriz},null)},label={Text(p.str("title"),maxLines=1,overflow=TextOverflow.Ellipsis)})}
-                if(pages.size>4){var expand by remember {mutableStateOf(false)};NavigationBarItem(selected=pages.drop(4).any{it.str("id")==pageId},onClick={expand=true},icon={Icon(Icons.Default.MoreHoriz,null)},label={Text("Ещё")});DropdownMenu(expanded=expand,onDismissRequest={expand=false}) {pages.drop(4).forEach {p->DropdownMenuItem(text={Text(p.str("title"))},onClick={pageId=p.str("id");expand=false})}}}
-            }},containerColor=MaterialTheme.colorScheme.background
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            when (mode) {
+                                "home" -> "Modular Workspace"
+                                "plugin" -> active?.name ?: "Плагин"
+                                "manager" -> "Плагины"
+                                else -> "Настройки"
+                            },
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawer.open() } }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Открыть меню")
+                        }
+                    },
+                    actions = {
+                        if (mode == "home") {
+                            IconButton(onClick = { mode = "settings" }) {
+                                Icon(Icons.Default.Settings, contentDescription = "Настройки")
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
+                    )
+                )
+            },
+            bottomBar = {
+                if (mode == "plugin" && pages.isNotEmpty()) {
+                    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                        pages.take(4).forEachIndexed { index, page ->
+                            NavigationBarItem(
+                                selected = page.str("id") == actualPage?.str("id"),
+                                onClick = { pageId = page.str("id") },
+                                icon = {
+                                    Icon(
+                                        when (index) {
+                                            0 -> Icons.Default.People
+                                            1 -> Icons.Default.CheckCircle
+                                            2 -> Icons.Default.CalendarMonth
+                                            else -> Icons.Default.MoreHoriz
+                                        },
+                                        contentDescription = null
+                                    )
+                                },
+                                label = {
+                                    Text(page.str("title"), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            )
+                        }
+                        if (pages.size > 4) {
+                            var expanded by remember { mutableStateOf(false) }
+                            NavigationBarItem(
+                                selected = pages.drop(4).any { it.str("id") == pageId },
+                                onClick = { expanded = true },
+                                icon = { Icon(Icons.Default.MoreHoriz, contentDescription = null) },
+                                label = { Text("Ещё") }
+                            )
+                            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                pages.drop(4).forEach { page ->
+                                    DropdownMenuItem(
+                                        text = { Text(page.str("title")) },
+                                        onClick = { pageId = page.str("id"); expanded = false }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.background
         ) {padding->
             Box(Modifier.fillMaxSize().padding(padding)) {
                 when(mode) {
