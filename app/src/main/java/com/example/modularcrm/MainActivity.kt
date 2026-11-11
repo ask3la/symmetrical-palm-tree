@@ -16,6 +16,32 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material.icons.filled.SupportAgent
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -32,11 +58,13 @@ class MainActivity:ComponentActivity() {
         super.onCreate(savedInstanceState)
         val engine=PluginEngine(applicationContext)
         val security=PinSecurity(this)
+        val preferences=getSharedPreferences("workspace_ui",MODE_PRIVATE)
         setContent {
-            MaterialTheme(colorScheme=lightColorScheme()) {
+            var themeMode by remember { mutableStateOf(preferences.getString("theme","system")?:"system") }
+            WorkspaceTheme(themeMode) {
                 var unlocked by remember { mutableStateOf(false) }
                 if(!unlocked) PinScreen(security){unlocked=true}
-                else Workspace(engine){unlocked=false}
+                else Workspace(engine,themeMode,{next->themeMode=next;preferences.edit().putString("theme",next).apply()}){unlocked=false}
             }
         }
     }
@@ -66,52 +94,114 @@ class MainActivity:ComponentActivity() {
     }
 }
 
+@Composable private fun PluginIcon(id:String) {
+    val icon=when(id){"crm"->Icons.Default.People;"hardware"->Icons.Default.Dns;"licenses"->Icons.Default.VpnKey;"support"->Icons.Default.SupportAgent;else->Icons.Default.Extension}
+    Icon(icon,null,tint=MaterialTheme.colorScheme.primary)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable private fun Workspace(engine:PluginEngine,onLock:()->Unit) {
+@Composable private fun Workspace(engine:PluginEngine,themeMode:String,onTheme:(String)->Unit,onLock:()->Unit) {
     var refresh by remember { mutableIntStateOf(0) }
     DisposableEffect(engine) {engine.changed={refresh++};onDispose{engine.changed=null}}
     val plugins=refresh.let {engine.plugins.toList()}
     var pluginId by remember { mutableStateOf("crm") }
     var pageId by remember { mutableStateOf("clients") }
-    var mode by remember { mutableStateOf("plugin") }
+    var mode by remember { mutableStateOf("home") }
     val drawer=rememberDrawerState(DrawerValue.Closed)
     val scope=rememberCoroutineScope()
     val active=plugins.firstOrNull{it.id==pluginId} ?: plugins.firstOrNull()
     val pages=active?.pages.orEmpty()
-    ModalNavigationDrawer(drawerState=drawer, drawerContent={
-        ModalDrawerSheet {
-            Text("Modular Workspace",Modifier.padding(20.dp),style=MaterialTheme.typography.titleLarge)
-            HorizontalDivider()
-            Text("Плагины",Modifier.padding(16.dp),style=MaterialTheme.typography.labelLarge)
-            plugins.forEach {p -> NavigationDrawerItem(label={Text(p.name)}, selected=mode=="plugin" && pluginId==p.id,
-                onClick={pluginId=p.id;pageId=p.pages.firstOrNull()?.str("id").orEmpty();mode="plugin";scope.launch{drawer.close()}},modifier=Modifier.padding(horizontal=12.dp)) }
-            HorizontalDivider()
-            NavigationDrawerItem(label={Text("Управление плагинами")},icon={Icon(Icons.Default.Extension,null)},selected=mode=="manager",onClick={mode="manager";scope.launch{drawer.close()}},modifier=Modifier.padding(horizontal=12.dp))
-            NavigationDrawerItem(label={Text("Настройки")},icon={Icon(Icons.Default.Settings,null)},selected=mode=="settings",onClick={mode="settings";scope.launch{drawer.close()}},modifier=Modifier.padding(horizontal=12.dp))
-            NavigationDrawerItem(label={Text("Блокировка")},icon={Icon(Icons.Default.Lock,null)},selected=false,onClick={onLock();scope.launch{drawer.close()}},modifier=Modifier.padding(horizontal=12.dp))
+    val actualPage=pages.firstOrNull{it.str("id")==pageId}?:pages.firstOrNull()
+    val pageTitle=actualPage?.str("title")?:active?.name?:"Раздел"
+    ModalNavigationDrawer(drawerState=drawer,drawerContent={
+        ModalDrawerSheet(modifier=Modifier.width(304.dp),drawerContainerColor=MaterialTheme.colorScheme.surface) {
+            Column(Modifier.fillMaxHeight().verticalScroll(rememberScrollState()).padding(12.dp),verticalArrangement=Arrangement.spacedBy(3.dp)) {
+                Row(Modifier.fillMaxWidth().padding(12.dp,18.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                    Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.primaryContainer){Box(Modifier.size(49.dp),contentAlignment=Alignment.Center){Icon(Icons.Default.Extension,null,tint=MaterialTheme.colorScheme.primary)}}
+                    Column {Text("Modular",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold);Text("Workspace",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)}
+                }
+                HorizontalDivider(Modifier.padding(bottom=12.dp))
+                NavigationDrawerItem(label={Text("Главная")},icon={Icon(Icons.Default.Home,null)},selected=mode=="home",onClick={mode="home";scope.launch{drawer.close()}},shape=RoundedCornerShape(15.dp))
+                Text("ПЛАГИНЫ",Modifier.padding(start=16.dp,top=19.dp,bottom=9.dp),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                plugins.forEach {p ->
+                    NavigationDrawerItem(label={Text(p.name)},icon={PluginIcon(p.id)},selected=mode=="plugin"&&pluginId==p.id,
+                        onClick={pluginId=p.id;pageId=p.pages.firstOrNull()?.str("id").orEmpty();mode="plugin";scope.launch{drawer.close()}},shape=RoundedCornerShape(15.dp))
+                }
+                HorizontalDivider(Modifier.padding(vertical=12.dp))
+                NavigationDrawerItem(label={Text("Управление плагинами")},icon={Icon(Icons.Default.Extension,null)},selected=mode=="manager",onClick={mode="manager";scope.launch{drawer.close()}},shape=RoundedCornerShape(15.dp))
+                NavigationDrawerItem(label={Text("Настройки")},icon={Icon(Icons.Default.Settings,null)},selected=mode=="settings",onClick={mode="settings";scope.launch{drawer.close()}},shape=RoundedCornerShape(15.dp))
+                NavigationDrawerItem(label={Text("Заблокировать")},icon={Icon(Icons.Default.Lock,null)},selected=false,onClick={onLock();scope.launch{drawer.close()}},shape=RoundedCornerShape(15.dp))
+            }
         }
     }) {
-        Scaffold(topBar={TopAppBar(title={Text(if(mode=="plugin")active?.name?:"Modular Workspace" else if(mode=="manager")"Плагины" else "Настройки")},navigationIcon={IconButton(onClick={scope.launch{drawer.open()}}){Icon(Icons.Default.Menu,"Меню")}})}) {padding->
-            Column(Modifier.fillMaxSize().padding(padding)) {
+        Scaffold(
+            topBar={TopAppBar(title={Text(when(mode){"home"->"Modular Workspace";"plugin"->active?.name?:"Плагин";"manager"->"Плагины";else->"Настройки"},fontWeight=FontWeight.SemiBold)},navigationIcon={IconButton(onClick={scope.launch{drawer.open()}}){Icon(Icons.Default.Menu,"Открыть меню")}},actions={if(mode=="home")IconButton(onClick={mode="settings"}){Icon(Icons.Default.Settings,"Настройки")}},colors=TopAppBarDefaults.topAppBarColors(containerColor=MaterialTheme.colorScheme.background)} )},
+            bottomBar={if(mode=="plugin"&&pages.isNotEmpty())NavigationBar(containerColor=MaterialTheme.colorScheme.surface) {
+                pages.take(4).forEachIndexed {index,p-> NavigationBarItem(selected=p.str("id")==actualPage?.str("id"),onClick={pageId=p.str("id")},icon={Icon(when(index){0->Icons.Default.People;1->Icons.Default.CheckCircle;2->Icons.Default.CalendarMonth;else->Icons.Default.MoreHoriz},null)},label={Text(p.str("title"),maxLines=1,overflow=TextOverflow.Ellipsis)})}
+                if(pages.size>4){var expand by remember {mutableStateOf(false)};NavigationBarItem(selected=pages.drop(4).any{it.str("id")==pageId},onClick={expand=true},icon={Icon(Icons.Default.MoreHoriz,null)},label={Text("Ещё")});DropdownMenu(expanded=expand,onDismissRequest={expand=false}) {pages.drop(4).forEach {p->DropdownMenuItem(text={Text(p.str("title"))},onClick={pageId=p.str("id");expand=false})}}}
+            }},containerColor=MaterialTheme.colorScheme.background
+        ) {padding->
+            Box(Modifier.fillMaxSize().padding(padding)) {
                 when(mode) {
+                    "home" -> HomeScreen(engine,refresh,onPlugin={id->val p=plugins.firstOrNull{it.id==id};if(p!=null){pluginId=id;pageId=p.pages.firstOrNull()?.str("id").orEmpty();mode="plugin"}},onManager={mode="manager"})
                     "manager" -> ManagerScreen(engine)
-                    "settings" -> SettingsScreen(engine,refresh)
-                    else -> {
-                        if(pages.isNotEmpty()) {
-                            val selected=pages.indexOfFirst{it.str("id")==pageId}.coerceAtLeast(0)
-                            ScrollableTabRow(selectedTabIndex=selected,edgePadding=8.dp) {
-                                pages.forEach{p->Tab(selected=p.str("id")==pages[selected].str("id"),onClick={pageId=p.str("id")},text={Text(p.str("title"))})}
-                            }
-                            val page=pages[selected]
-                            when(page.str("kind","collection")) {
-                                "stale" -> StaleScreen(engine,page,refresh)
-                                "metrics" -> MetricsScreen(engine,page,refresh)
-                                else -> CollectionScreen(engine,"${active!!.id}.${page.str("collection")}",refresh)
-                            }
-                        } else Text("У плагина пока нет разделов",Modifier.padding(20.dp))
-                    }
+                    "settings" -> SettingsScreen(engine,refresh,themeMode,onTheme)
+                    else -> if(actualPage!=null && active!=null) {
+                        when(actualPage.str("kind","collection")) {
+                            "stale" -> StaleScreen(engine,actualPage,refresh)
+                            "metrics" -> MetricsScreen(engine,actualPage,refresh)
+                            else -> CollectionScreen(engine,"${active.id}.${actualPage.str("collection")}",refresh)
+                        }
+                    } else EmptyState("В плагине пока нет разделов","Выбери другой плагин или установи расширение")
                 }
             }
+        }
+    }
+}
+
+@Composable private fun EmptyState(title:String,detail:String) {
+    Column(Modifier.fillMaxWidth().padding(28.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        Icon(Icons.Default.Extension,null,Modifier.size(48.dp),tint=MaterialTheme.colorScheme.primary)
+        Text(title,style=MaterialTheme.typography.titleMedium)
+        Text(detail,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable private fun HomeScreen(engine:PluginEngine,revision:Int,onPlugin:(String)->Unit,onManager:()->Unit) {
+    val plugins=revision.let{engine.plugins.toList()}
+    val clients=remember(revision){engine.data.list("crm.clients")}
+    val tasks=remember(revision){engine.data.list("crm.tasks")}
+    val hardware=remember(revision){engine.data.list("hardware.devices")}
+    val licenses=remember(revision){engine.data.list("licenses.keys")}
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),verticalArrangement=Arrangement.spacedBy(18.dp)) {
+        Text("Добрый день!",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold)
+        Text("Все важные данные в одном месте",color=MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+            MetricTile("Клиенты",clients.size,Icons.Default.People,Modifier.weight(1f)){onPlugin("crm")}
+            MetricTile("Оборудование",hardware.size,Icons.Default.Dns,Modifier.weight(1f)){onPlugin("hardware")}
+        }
+        Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+            MetricTile("Лицензии",licenses.size,Icons.Default.VpnKey,Modifier.weight(1f)){onPlugin("licenses")}
+            MetricTile("Задачи",tasks.size,Icons.Default.CheckCircle,Modifier.weight(1f)){onPlugin("crm")}
+        }
+        Text("Быстрый доступ",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
+        plugins.forEach{p->ElevatedCard(modifier=Modifier.fillMaxWidth().clickable{onPlugin(p.id)},shape=RoundedCornerShape(18.dp)) {
+            Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)) {
+                Surface(color=MaterialTheme.colorScheme.primaryContainer,shape=RoundedCornerShape(14.dp)){Box(Modifier.size(48.dp),contentAlignment=Alignment.Center){PluginIcon(p.id)}}
+                Column(Modifier.weight(1f)){Text(p.name,style=MaterialTheme.typography.titleMedium);Text("${p.pages.size} разделов",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
+                Icon(Icons.Default.ChevronRight,null,tint=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }}
+        OutlinedButton(onClick=onManager,modifier=Modifier.fillMaxWidth()) { Icon(Icons.Default.Extension,null);Spacer(Modifier.width(8.dp));Text("Установить плагин .mcrm") }
+    }
+}
+
+@Composable private fun MetricTile(title:String,count:Int,icon:androidx.compose.ui.graphics.vector.ImageVector,modifier:Modifier=Modifier,onClick:()->Unit) {
+    ElevatedCard(modifier=modifier.clickable{onClick()},shape=RoundedCornerShape(22.dp)) {
+        Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(9.dp)) {
+            Icon(icon,null,tint=MaterialTheme.colorScheme.primary)
+            Text(title,style=MaterialTheme.typography.labelLarge,maxLines=1)
+            Text(count.toString(),style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold)
         }
     }
 }
@@ -129,11 +219,11 @@ class MainActivity:ComponentActivity() {
         }.onFailure {result="Ошибка проверки: ${it.message}"}
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-        Text("Плагины .mcrm",style=MaterialTheme.typography.headlineSmall)
+        Text("Управление плагинами",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
         Text("Файлы ZIP с manifest.json. Приложение интерпретирует их интерфейс, события и действия. Дополнительные APK не нужны.")
-        Button(onClick={picker.launch(arrayOf("application/zip","application/octet-stream","*/*"))}){Text("+ Установить .mcrm")}
+        Button(onClick={picker.launch(arrayOf("application/zip","application/octet-stream","*/*"))},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(16.dp)){Icon(Icons.Default.Add,null);Spacer(Modifier.width(8.dp));Text("Загрузить плагин (.mcrm)")}
         if(result.isNotEmpty())Text(result)
-        engine.plugins.forEach{p->ElevatedCard(Modifier.fillMaxWidth()){Column(Modifier.padding(14.dp)){
+        engine.plugins.forEach{p->ElevatedCard(Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp)){Column(Modifier.padding(16.dp)){
             Text(p.name,style=MaterialTheme.typography.titleMedium)
             Text("${p.id} · API ${p.manifest.optInt("api")}")
             Text("Разделы: ${p.pages.size}; расширения: ${p.extensions.size}; обработчики: ${p.hooks.size}")
@@ -155,8 +245,17 @@ class MainActivity:ComponentActivity() {
     }
 }
 
-@Composable private fun SettingsScreen(engine:PluginEngine,revision:Int) {
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable private fun SettingsScreen(engine:PluginEngine,revision:Int,themeMode:String,onTheme:(String)->Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+        Text("Внешний вид",style=MaterialTheme.typography.titleLarge)
+        Text("Тема приложения",style=MaterialTheme.typography.titleMedium)
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            listOf("light" to "Светлая","dark" to "Тёмная","system" to "Системная").forEachIndexed {i,(key,title)->
+                SegmentedButton(selected=themeMode==key,onClick={onTheme(key)},shape=SegmentedButtonDefaults.itemShape(index=i,count=3),label={Text(title)})
+            }
+        }
+        HorizontalDivider()
         Text("Настройки плагинов",style=MaterialTheme.typography.titleLarge)
         engine.plugins.forEach{p-> if(p.settings.isNotEmpty()) {
             Text(p.name,style=MaterialTheme.typography.titleMedium)
@@ -222,25 +321,77 @@ class MainActivity:ComponentActivity() {
     val def=engine.collectionDef(collection)
     val rows=remember(collection,revision,relationId){engine.data.list(collection,relationField,relationId)}
     val title=def?.str("title",collection)?:collection
-    Column(Modifier.fillMaxSize().padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            Text(title,style=MaterialTheme.typography.titleLarge,modifier=Modifier.weight(1f))
-            Button(onClick={editingId=null;editing=true}){Text("+ Добавить")}
-        }
-        OutlinedTextField(search,{search=it},label={Text("Поиск")},modifier=Modifier.fillMaxWidth(),singleLine=true)
-        LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            items(rows.filter {r->r.data.toString().contains(search,true)},key={it.id}){r->
-                ElevatedCard(Modifier.fillMaxWidth().clickable{selected=r.id}){
-                    Column(Modifier.padding(12.dp)){
-                        Text(engine.nameOf(collection,r.id.toString()),style=MaterialTheme.typography.titleMedium)
-                        engine.fields(collection).filter{it.str("type")!="multiline"}.take(3).forEach{f->val v=r.data.str(f.str("id"));if(v.isNotBlank())Text("${f.str("label",f.str("id"))}: ${display(engine,f,v)}",style=MaterialTheme.typography.bodySmall)}
+    if(selected!=null){
+        FullDetailScreen(engine,collection,selected!!,revision,onClose={selected=null},onEdit={editingId=selected;editing=true})
+    }else {
+        Scaffold(containerColor=MaterialTheme.colorScheme.background,floatingActionButton={FloatingActionButton(onClick={editingId=null;editing=true},containerColor=MaterialTheme.colorScheme.primary){Icon(Icons.Default.Add,"Добавить",tint=MaterialTheme.colorScheme.onPrimary)}}){padding->
+            Column(Modifier.fillMaxSize().padding(padding).padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+                Text(title,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
+                OutlinedTextField(search,{search=it},label={Text("Поиск")},leadingIcon={Icon(Icons.Default.Search,null)},modifier=Modifier.fillMaxWidth(),singleLine=true,shape=RoundedCornerShape(18.dp))
+                val filtered=rows.filter{it.data.toString().contains(search,true)}
+                Text("Найдено: ${filtered.size}",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                if(filtered.isEmpty())EmptyState("Записей пока нет","Нажми +, чтобы создать первую запись")
+                LazyColumn(verticalArrangement=Arrangement.spacedBy(9.dp),contentPadding=PaddingValues(bottom=85.dp)) {
+                    items(filtered,key={it.id}){r->
+                        ElevatedCard(modifier=Modifier.fillMaxWidth().clickable{selected=r.id},shape=RoundedCornerShape(18.dp)) {
+                            Row(Modifier.fillMaxWidth().padding(14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                                Surface(color=MaterialTheme.colorScheme.primaryContainer,shape=RoundedCornerShape(15.dp)) {Box(Modifier.size(46.dp),contentAlignment=Alignment.Center){Icon(if(collection=="crm.clients")Icons.Default.Business else Icons.Default.List,null,tint=MaterialTheme.colorScheme.primary)}}
+                                Column(Modifier.weight(1f)) {
+                                    Text(engine.nameOf(collection,r.id.toString()),style=MaterialTheme.typography.titleMedium,maxLines=2,overflow=TextOverflow.Ellipsis)
+                                    engine.fields(collection).filter{it.str("type")!="multiline"}.take(2).forEach{f->val v=r.data.str(f.str("id"));if(v.isNotBlank())Text(display(engine,f,v),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1)}
+                                }
+                                Icon(Icons.Default.ChevronRight,null,tint=MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                     }
                 }
             }
         }
     }
-    if(selected!=null) DetailDialog(engine,collection,selected!!,revision,onClose={selected=null},onEdit={editingId=selected;editing=true})
     if(editing) RecordForm(engine,collection,editingId,relationField,relationId,onClose={editing=false})
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable private fun FullDetailScreen(engine:PluginEngine,collection:String,id:Long,revision:Int,onClose:()->Unit,onEdit:()->Unit) {
+    val record=remember(collection,id,revision){engine.data.read(collection,id)}
+    val tabs=remember(collection,revision){engine.extensions("$collection.detail.tabs","detail_tab")}
+    var tab by remember(collection,id){mutableIntStateOf(0)}
+    val name=record?.let{engine.nameOf(collection,it.id.toString())}?:"Карточка"
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically) {
+            IconButton(onClick=onClose){Icon(Icons.Default.ArrowBack,"Назад")}
+            Text("Карточка",style=MaterialTheme.typography.titleMedium,modifier=Modifier.weight(1f))
+            TextButton(onClick=onEdit){Text("Изменить")}
+        }
+        Column(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=10.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
+            Text(name,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
+            Text(if(collection=="crm.clients")"Клиент · ${record?.data?.str("type").orEmpty()}" else collection,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        ScrollableTabRow(selectedTabIndex=tab,edgePadding=12.dp,containerColor=MaterialTheme.colorScheme.background) {
+            Tab(tab==0,onClick={tab=0},text={Text("Общее")})
+            tabs.forEachIndexed {i,e->Tab(tab==i+1,onClick={tab=i+1},text={Text(e.str("title"))})}
+        }
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+            if(tab==0){
+                ElevatedCard(Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp)) {
+                    Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                        Text("Основная информация",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
+                        record?.let{r->engine.fields(collection).forEach{f->val v=r.data.str(f.str("id"));if(v.isNotBlank()){
+                            Text(f.str("label",f.str("id")),style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(display(engine,f,v),style=MaterialTheme.typography.bodyLarge)
+                        }}}
+                    }
+                }
+                engine.extensions("$collection.labels","label_patch").forEach{patch->Text(patch.str("text"))}
+                engine.extensions("$collection.detail.actions","detail_action").forEach{ext->
+                    Button(onClick={runCatching{engine.action(ext.str("owner"),ext.str("action"),record)}}){Text(ext.str("title","Действие"))}
+                }
+            }else if(tab-1 in tabs.indices){
+                val ext=tabs[tab-1]
+                RelationPanel(engine,ext.str("collection"),revision,ext.str("relation_field","client_id"),id.toString())
+            }
+        }
+    }
 }
 
 private fun display(engine:PluginEngine,field:JSONObject,value:String):String = if(field.str("type")=="reference")engine.nameOf(field.str("target"),value) else value

@@ -119,3 +119,16 @@ plugins/*.manifest.json               # editable source manifests
 tools/validate_plugins.py            # preflight schema/package checks
 .github/workflows/android.yml        # compile APK on GitHub
 ```
+
+## UI refresh — v3 (2026-11-11)
+
+The app now includes two curated Material 3 palettes, based on the selected warm white/orange design and a dark navy/amber variant. In **Настройки → Внешний вид**, choose **Светлая**, **Тёмная**, or **Системная**. Preference is saved using private Android SharedPreferences; it is separate from plugin SQLite data.
+
+- Hamburger icon at top left opens a plugin drawer plus plugin manager, settings, and PIN lock.
+- Home page displays summary tiles for customer, inventory, license key, and task collections, with quick plugin shortcuts.
+- Plugin pages use a bottom navigation bar (four primary pages plus **Ещё** for additional sections); this is scoped to the current plugin and auto-generates from its manifest.
+- Lists have search, larger row targets, an explicit add floating button, and status-friendly warm surfaces.
+- Tapping a row opens a full-screen card. The card's tabs are merged from installed `.mcrm` plugin extensions; external modules retain their own collection storage and can add related data tabs to the CRM client card.
+- Existing PIN, SQLite schema, calendar integration, events/actions, and external `.mcrm` installation logic are retained.
+
+**Build and device testing:** `tools/validate_plugins.py` passes. No Android SDK/Gradle runtime was available locally to compile and instrument-test the UI changes. Run the included GitHub Actions workflow and inspect its logs before distributing an APK. The actual visual layout may vary with device width/font size. Android permissions, data encryption and calendar/reminder limitations documented above remain unchanged.
