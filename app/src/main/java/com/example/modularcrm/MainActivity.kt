@@ -2,7 +2,11 @@ package com.example.modularcrm
 
 import android.Manifest
 import android.os.Build
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -281,20 +285,17 @@ class MainActivity:ComponentActivity() {
     var manifest by remember{mutableStateOf<JSONObject?>(null)}
     val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->
         if(uri!=null) runCatching {engine.inspect(uri)}.onSuccess {meta ->
-            val requested=meta.optJSONObject("permissions")?.optJSONArray("write")
-            if(requested==null || requested.length()==0) {
-                runCatching{engine.install(uri)}.onSuccess{result="Установлен ${it.name}"}.onFailure{result="Ошибка: ${it.message}"}
-            } else {pending=uri;manifest=meta}
+            pending=uri;manifest=meta
         }.onFailure {result="Ошибка проверки: ${it.message}"}
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         Text("Управление плагинами",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
-        Text("Файлы ZIP с manifest.json. Приложение интерпретирует их интерфейс, события и действия. Дополнительные APK не нужны.")
+        Text("Импортируй .mcrm: новый плагин установится, а более новая версия существующего обновит его без удаления записей.")
         Button(onClick={picker.launch(arrayOf("application/zip","application/octet-stream","*/*"))},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(16.dp)){Icon(Icons.Default.Add,null);Spacer(Modifier.width(8.dp));Text("Загрузить плагин (.mcrm)")}
         if(result.isNotEmpty())Text(result)
         engine.plugins.forEach{p->ElevatedCard(Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp)){Column(Modifier.padding(16.dp)){
             Text(p.name,style=MaterialTheme.typography.titleMedium)
-            Text("${p.id} · API ${p.manifest.optInt("api")}")
+            Text("${p.id} · версия ${p.manifest.str("version")} · API ${p.manifest.optInt("api")}")
             Text("Разделы: ${p.pages.size}; расширения: ${p.extensions.size}; обработчики: ${p.hooks.size}")
             if(p.id!="crm") TextButton(onClick={result=runCatching{engine.remove(p.id);"Удалён ${p.name}"}.getOrElse{it.message?:"Ошибка"}}){Text("Удалить")}
         }}}
@@ -303,13 +304,15 @@ class MainActivity:ComponentActivity() {
         val meta=manifest!!
         val array=meta.optJSONObject("permissions")?.optJSONArray("write")
         val requested=(0 until (array?.length()?:0)).map{array!!.getString(it)}.toSet()
-        AlertDialog(onDismissRequest={manifest=null;pending=null},title={Text("Разрешения плагина ${meta.str("name")}")},
-            text={Text("Плагин запрашивает изменение данных других плагинов: ${requested.joinToString()}. Это позволит ему добавлять и менять связанные записи. Разрешить только доверенному файлу.")},
+        val current=engine.plugins.firstOrNull{it.id==meta.str("id")}
+        val isUpdate=current!=null
+        AlertDialog(onDismissRequest={manifest=null;pending=null},title={Text(if(isUpdate)"Обновление ${meta.str("name")}" else "Установка ${meta.str("name")}")},
+            text={Text((if(isUpdate)"${current?.manifest?.str("version")} → ${meta.str("version")}. Данные SQLite сохраняются. " else "Новый плагин. ") + (if(requested.isEmpty())"Дополнительные разрешения не запрашиваются." else "Запрошено изменение коллекций: ${requested.joinToString()}. Разрешай только доверенным файлам."))},
             confirmButton={TextButton(onClick={
                 val uri=pending!!
-                runCatching{engine.install(uri,requested)}.onSuccess{result="Установлен ${it.name}"}.onFailure{result="Ошибка: ${it.message}"}
+                runCatching{engine.install(uri,requested)}.onSuccess{result=(if(isUpdate)"Обновлён " else "Установлен ")+it.name+" до версии "+it.manifest.str("version")}.onFailure{result="Ошибка: ${it.message}"}
                 manifest=null;pending=null
-            }){Text("Разрешить и установить")}},
+            }){Text(if(isUpdate)"Обновить" else "Установить")}},
             dismissButton={TextButton(onClick={manifest=null;pending=null}){Text("Отмена")}})
     }
 }
@@ -407,7 +410,7 @@ class MainActivity:ComponentActivity() {
                                 Surface(color=MaterialTheme.colorScheme.primaryContainer,shape=RoundedCornerShape(15.dp)) {Box(Modifier.size(46.dp),contentAlignment=Alignment.Center){Icon(if(collection=="crm.clients")Icons.Default.Business else Icons.Default.List,null,tint=MaterialTheme.colorScheme.primary)}}
                                 Column(Modifier.weight(1f)) {
                                     Text(engine.nameOf(collection,r.id.toString()),style=MaterialTheme.typography.titleMedium,maxLines=2,overflow=TextOverflow.Ellipsis)
-                                    engine.fields(collection).filter{it.str("type")!="multiline"}.take(2).forEach{f->val v=r.data.str(f.str("id"));if(v.isNotBlank())Text(display(engine,f,v),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1)}
+                                    engine.fields(collection).filter{it.str("type")!="multiline" && !it.optBoolean("hidden")}.take(2).forEach{f->val v=r.data.str(f.str("id"));if(v.isNotBlank())Text(display(engine,f,v),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1)}
                                 }
                                 Icon(Icons.Default.ChevronRight,null,tint=MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -445,10 +448,26 @@ class MainActivity:ComponentActivity() {
                 ElevatedCard(Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp)) {
                     Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
                         Text("Основная информация",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
-                        record?.let{r->engine.fields(collection).forEach{f->val v=r.data.str(f.str("id"));if(v.isNotBlank()){
-                            Text(f.str("label",f.str("id")),style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(display(engine,f,v),style=MaterialTheme.typography.bodyLarge)
-                        }}}
+                        record?.let{r->
+                            var currentGroup=""
+                            engine.fields(collection).filterNot{it.optBoolean("hidden")}.forEach{f->
+                                val visible=f.optJSONObject("visible_when")?.let{condition->r.data.str(condition.str("field"))==condition.str("equals")}?:true
+                                val v=r.data.str(f.str("id"))
+                                if(visible && v.isNotBlank()) {
+                                    val group=f.str("group")
+                                    if(group.isNotBlank() && group!=currentGroup) {
+                                        if(currentGroup.isNotEmpty()) HorizontalDivider()
+                                        Text(group,style=MaterialTheme.typography.titleSmall,color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.SemiBold)
+                                        currentGroup=group
+                                    }
+                                    Text(f.str("label",f.str("id")),style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                                    if(f.str("type")=="file") {
+                                        val context=LocalContext.current
+                                        TextButton(onClick={runCatching{context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(v)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))}}){Text("Открыть документ")}
+                                    } else Text(display(engine,f,v),style=MaterialTheme.typography.bodyLarge)
+                                }
+                            }
+                        }
                     }
                 }
                 engine.extensions("$collection.labels","label_patch").forEach{patch->Text(patch.str("text"))}
@@ -463,7 +482,15 @@ class MainActivity:ComponentActivity() {
     }
 }
 
-private fun display(engine:PluginEngine,field:JSONObject,value:String):String = if(field.str("type")=="reference")engine.nameOf(field.str("target"),value) else value
+private fun display(engine:PluginEngine,field:JSONObject,value:String):String = when(field.str("type")) {
+    "reference"->engine.nameOf(field.str("target"),value)
+    "datetime"->value.toLongOrNull()?.let{Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"))}?:value
+    "date"->runCatching{LocalDate.parse(value).format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))}.getOrDefault(value)
+    "weekday"->listOf("Понедельник","Вторник","Среда","Четверг","Пятница","Суббота","Воскресенье").getOrNull((value.toIntOrNull()?:0)-1)?:value
+    "monthday"->"$value-е число"
+    "file"->"Прикреплён документ"
+    else->value
+}
 
 @Composable private fun DetailDialog(engine:PluginEngine,collection:String,id:Long,revision:Int,onClose:()->Unit,onEdit:()->Unit) {
     val record=remember(id,revision){engine.data.read(collection,id)}
@@ -476,7 +503,7 @@ private fun display(engine:PluginEngine,field:JSONObject,value:String):String = 
                 tabs.forEachIndexed{i,e->Tab(selected=tab==i+1,onClick={tab=i+1},text={Text(e.str("title"))})}
             }
             if(tab==0){
-                record?.let{r->engine.fields(collection).forEach{f->val v=r.data.str(f.str("id"));if(v.isNotBlank())Text("${f.str("label",f.str("id"))}: ${display(engine,f,v)}")}}
+                record?.let{r->engine.fields(collection).filterNot{it.optBoolean("hidden")}.forEach{f->val v=r.data.str(f.str("id"));if(v.isNotBlank())Text("${f.str("label",f.str("id"))}: ${display(engine,f,v)}")}}
                 engine.extensions("$collection.labels","label_patch").forEach {patch->Text(patch.str("text"),style=MaterialTheme.typography.bodySmall)}
                 engine.extensions("$collection.detail.actions","detail_action").forEach{ext->
                     Button(onClick={runCatching{engine.action(ext.str("owner"),ext.str("action"),record)}}){Text(ext.str("title","Действие"))}
@@ -493,6 +520,7 @@ private fun display(engine:PluginEngine,field:JSONObject,value:String):String = 
 @Composable private fun RelationPanel(engine:PluginEngine,collection:String,revision:Int,relationField:String,relationId:String) {
     var add by remember(collection,relationId){mutableStateOf(false)}
     var view by remember(collection,relationId){mutableStateOf<Long?>(null)}
+    var editId by remember(collection,relationId){mutableStateOf<Long?>(null)}
     val rows=remember(collection,relationId,revision){engine.data.list(collection,relationField,relationId)}
     Button(onClick={add=true}){Text("+ Добавить")}
     if(rows.isEmpty())Text("Пока нет записей")
@@ -511,23 +539,54 @@ private fun display(engine:PluginEngine,field:JSONObject,value:String):String = 
     if(view!=null) {
         val item=engine.data.read(collection,view!!)
         AlertDialog(onDismissRequest={view=null},title={Text(item?.let{engine.nameOf(collection,it.id.toString())}?:"Запись")},
-            text={Column{item?.let {r->engine.fields(collection).forEach{f->Text("${f.str("label")}: ${display(engine,f,r.data.str(f.str("id")))}")}}}},
-            confirmButton={TextButton(onClick={view=null;add=true}){Text("Новая запись")}},
+            text={Column(Modifier.heightIn(max=400.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)){
+                item?.let {r->engine.fields(collection).forEach{f->
+                    val value=r.data.str(f.str("id"))
+                    if(value.isNotBlank()){
+                        Text(f.str("label"),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                        if(f.str("type")=="file"){
+                            val context=LocalContext.current
+                            TextButton(onClick={runCatching{context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(value)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))}}){Text("Открыть документ")}
+                        }else Text(display(engine,f,value))
+                    }
+                }}
+            }},
+            confirmButton={TextButton(onClick={editId=view;view=null}){Text("Изменить")}},
             dismissButton={TextButton(onClick={view=null}){Text("Закрыть")}})
     }
+    if(editId!=null) RecordForm(engine,collection,editId,relationField,relationId,onClose={editId=null})
 }
 
 @Composable private fun RecordForm(engine:PluginEngine,collection:String,id:Long?,relationField:String?,relationId:String?,onClose:()->Unit) {
     val source=remember(collection,id){id?.let{engine.data.read(collection,it)?.data}}
     val fields=remember(collection){engine.fields(collection)}
-    val values=remember(collection,id){mutableStateMapOf<String,String>().also{map->fields.forEach{map[it.str("id")]=source?.str(it.str("id")).orEmpty()};if(relationField!=null&&relationId!=null)map[relationField]=relationId}}
+    val values=remember(collection,id){mutableStateMapOf<String,String>().also{map->fields.forEach{map[it.str("id")]=source?.str(it.str("id")).orEmpty()};if(relationField!=null&&relationId!=null)map[relationField]=relationId; if(collection=="crm.tasks" && id==null){map["repeat"]="Одноразово";map["reminder_time"]="09:00"}}}
     var error by remember{mutableStateOf("")}
     val context=LocalContext.current
     val permissions=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()){}
+    var pickingField by remember { mutableStateOf<String?>(null) }
+    val filePicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->
+        if(uri!=null && pickingField!=null){
+            runCatching { context.contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            values[pickingField!!]=uri.toString()
+        }
+        pickingField=null
+    }
     AlertDialog(onDismissRequest=onClose,title={Text(if(id==null)"Новая запись" else "Редактирование")},text={
         Column(Modifier.fillMaxWidth().heightIn(max=520.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            var currentGroup=""
             fields.forEach{f->
                 val key=f.str("id");val type=f.str("type")
+                val visible=f.optJSONObject("visible_when")?.let { condition ->
+                    values[condition.str("field")]==condition.str("equals")
+                }?:true
+                if(!visible || f.optBoolean("hidden")) return@forEach
+                val group=f.str("group")
+                if(group.isNotBlank() && group!=currentGroup) {
+                    if(currentGroup.isNotEmpty()) HorizontalDivider(Modifier.padding(top=8.dp,bottom=3.dp))
+                    Text(group,style=MaterialTheme.typography.titleSmall,fontWeight=FontWeight.SemiBold,color=MaterialTheme.colorScheme.primary)
+                    currentGroup=group
+                }
                 if(key==relationField && relationId!=null) {
                     Text("${f.str("label")}: ${engine.nameOf(f.str("target"),relationId)}")
                 } else when(type) {
@@ -550,20 +609,119 @@ private fun display(engine:PluginEngine,field:JSONObject,value:String):String = 
                             }
                         }
                     }
-                    "boolean" -> Row {Checkbox(values[key]=="true",onCheckedChange={values[key]=it.toString()});Text(f.str("label"))}
-                    else -> OutlinedTextField(value=values[key].orEmpty(),onValueChange={values[key]=it},label={Text(f.str("label",key)+(if(f.optBoolean("required"))" *" else ""))},singleLine=type!="multiline",modifier=Modifier.fillMaxWidth(),supportingText=if(type=="datetime"){{Text("Unix timestamp в миллисекундах")}}else null)
+                    "boolean" -> Row(verticalAlignment=Alignment.CenterVertically) {Checkbox(values[key]=="true",onCheckedChange={values[key]=it.toString()});Text(f.str("label"))}
+                    "file" -> {
+                        Text(f.str("label"),style=MaterialTheme.typography.labelMedium)
+                        OutlinedButton(onClick={pickingField=key;filePicker.launch(arrayOf("application/pdf","image/*","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document","*/*"))}) {
+                            Text(if(values[key].isNullOrEmpty()) "Прикрепить файл" else "Заменить файл")
+                        }
+                        if(!values[key].isNullOrBlank()) Text("Документ прикреплён",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.primary)
+                    }
+                    "date","datetime","time" -> HumanDateTimeField(f.str("label"),type,values[key].orEmpty(),{values[key]=it})
+                    "weekday" -> {
+                        val weekdays=listOf("Понедельник","Вторник","Среда","Четверг","Пятница","Суббота","Воскресенье")
+                        var expanded by remember(key){mutableStateOf(false)}
+                        Text(f.str("label"))
+                        Box {OutlinedButton(onClick={expanded=true}) {Text(values[key]?.toIntOrNull()?.let{weekdays.getOrNull(it-1)}?:"Выбрать день недели")}
+                            DropdownMenu(expanded=expanded,onDismissRequest={expanded=false}) {weekdays.forEachIndexed{i,day->DropdownMenuItem(text={Text(day)},onClick={values[key]=(i+1).toString();expanded=false})}}
+                        }
+                    }
+                    "monthday" -> {
+                        var expanded by remember(key){mutableStateOf(false)}
+                        Text(f.str("label"))
+                        Box{OutlinedButton(onClick={expanded=true}){Text(values[key]?.takeIf{it.isNotBlank()}?.let{"$it-е число"}?:"Выбрать число месяца")}
+                            DropdownMenu(expanded=expanded,onDismissRequest={expanded=false},modifier=Modifier.heightIn(max=300.dp)){(1..31).forEach{day->DropdownMenuItem(text={Text("$day")},onClick={values[key]=day.toString();expanded=false})}}
+                        }
+                    }
+                    else -> OutlinedTextField(value=values[key].orEmpty(),onValueChange={values[key]=it},label={Text(f.str("label",key)+(if(f.optBoolean("required"))" *" else ""))},singleLine=type!="multiline",modifier=Modifier.fillMaxWidth())
                 }
             }
             if(error.isNotEmpty())Text(error,color=MaterialTheme.colorScheme.error)
         }
     },confirmButton={TextButton(onClick={
-        val required=fields.firstOrNull{it.optBoolean("required")&&values[it.str("id")].isNullOrBlank()}
+        val required=fields.firstOrNull{f->
+            val condition=f.optJSONObject("visible_when")
+            val visible=condition==null || values[condition.str("field")]==condition.str("equals")
+            visible && f.optBoolean("required") && values[f.str("id")].isNullOrBlank()
+        }
         if(required!=null){error="Заполните ${required.str("label")}"}
         else runCatching{
+            if(collection=="crm.tasks") {
+                val repeat=values["repeat"].orEmpty().ifBlank{"Одноразово"}
+                val now=ZonedDateTime.now()
+                val time=runCatching{LocalTime.parse(values["reminder_time"].orEmpty().ifBlank{"09:00"})}.getOrElse{throw IllegalArgumentException("Неверное время")}
+                val next=when(repeat){
+                    "Одноразово","Нет" -> {
+                        val day=values["once_date"]?.takeIf{it.isNotBlank()}?.let{LocalDate.parse(it)}
+                            ?:values["due_at"]?.toLongOrNull()?.let{Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()}
+                            ?:throw IllegalArgumentException("Выбери дату задачи")
+                        day.atTime(time).atZone(ZoneId.systemDefault())
+                    }
+                    "Еженедельно" -> {
+                        val weekday=values["weekday"]?.toIntOrNull()?.takeIf{it in 1..7}?:throw IllegalArgumentException("Выбери день недели")
+                        var date=now.toLocalDate().with(java.time.temporal.TemporalAdjusters.nextOrSame(DayOfWeek.of(weekday)))
+                        var result=date.atTime(time).atZone(ZoneId.systemDefault())
+                        if(!result.isAfter(now))result=result.plusWeeks(1)
+                        result
+                    }
+                    "Ежемесячно" -> {
+                        val day=values["monthday"]?.toIntOrNull()?.takeIf{it in 1..31}?:throw IllegalArgumentException("Выбери число месяца")
+                        var month=YearMonth.from(now)
+                        var result=month.atDay(day.coerceAtMost(month.lengthOfMonth())).atTime(time).atZone(ZoneId.systemDefault())
+                        if(!result.isAfter(now)){month=month.plusMonths(1);result=month.atDay(day.coerceAtMost(month.lengthOfMonth())).atTime(time).atZone(ZoneId.systemDefault())}
+                        result
+                    }
+                    else -> throw IllegalArgumentException("Неизвестная периодичность")
+                }
+                require(next.isAfter(now)){"Укажи будущую дату и время"}
+                values["due_at"]=next.toInstant().toEpochMilli().toString()
+            }
             val json=JSONObject();values.forEach{(k,v)->json.put(k,v)}
             if(id!=null&&source!=null){source.keys().forEach{key->if(!json.has(key))json.put(key,source.get(key))}}
             engine.save(collection,json,id)
             onClose()
         }.onFailure{error=it.message?:"Ошибка"}
     }){Text("Сохранить")}},dismissButton={TextButton(onClick=onClose){Text("Отмена")}})
+}
+
+
+/** Date/time editors expose human-readable values; timestamps remain internal storage only. */
+@Composable private fun HumanDateTimeField(label:String,type:String,value:String,onValue:(String)->Unit) {
+    val context=LocalContext.current
+    val zone=ZoneId.systemDefault()
+    val parsed=remember(value,type) {
+        runCatching {
+            when(type) {
+                "time"->null
+                "date" -> value.takeIf{it.isNotBlank()}?.let{LocalDate.parse(it).atStartOfDay(zone)}
+                else -> value.toLongOrNull()?.let{Instant.ofEpochMilli(it).atZone(zone)}
+            }
+        }.getOrNull()
+    }
+    val display=when(type){
+        "time"->value.ifBlank{"Не выбрано"}
+        "date"->parsed?.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))?:"Выбрать дату"
+        else->parsed?.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"))?:"Выбрать дату и время"
+    }
+    Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
+        Text(label,style=MaterialTheme.typography.labelMedium)
+        OutlinedButton(onClick={
+            val initial=parsed?:ZonedDateTime.now()
+            if(type=="time") {
+                val old=runCatching{LocalTime.parse(value)}.getOrDefault(LocalTime.of(9,0))
+                TimePickerDialog(context,{_,hour,minute->onValue("%02d:%02d".format(hour,minute))},old.hour,old.minute,true).show()
+            } else {
+                DatePickerDialog(context,{_,year,month,day->
+                    val date=LocalDate.of(year,month+1,day)
+                    if(type=="date")onValue(date.toString())
+                    else {
+                        val clock=parsed?.toLocalTime()?:LocalTime.of(9,0)
+                        TimePickerDialog(context,{_,hour,minute->
+                            onValue(date.atTime(hour,minute).atZone(zone).toInstant().toEpochMilli().toString())
+                        },clock.hour,clock.minute,true).show()
+                    }
+                },initial.year,initial.monthValue-1,initial.dayOfMonth).show()
+            }
+        },modifier=Modifier.fillMaxWidth()) {Text(display)}
+    }
 }

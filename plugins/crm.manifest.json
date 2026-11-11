@@ -2,7 +2,7 @@
   "api": 2,
   "id": "crm",
   "name": "Клиенты (CRM)",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "depends": [],
   "collections": [
     {
@@ -11,9 +11,10 @@
       "fields": [
         {
           "id": "name",
-          "label": "Название / ФИО",
+          "label": "Краткое название / ФИО",
           "type": "text",
-          "required": true
+          "required": true,
+          "group": "Общие сведения"
         },
         {
           "id": "type",
@@ -23,28 +24,192 @@
             "Организация",
             "Физическое лицо"
           ],
-          "required": true
+          "required": true,
+          "group": "Общие сведения"
         },
         {
           "id": "phone",
-          "label": "Телефон",
-          "type": "text"
+          "label": "Основной телефон",
+          "type": "text",
+          "group": "Общие сведения"
         },
         {
           "id": "email",
           "label": "Email",
-          "type": "text"
-        },
-        {
-          "id": "notes",
-          "label": "Примечания",
-          "type": "multiline"
+          "type": "text",
+          "group": "Общие сведения"
         },
         {
           "id": "category_id",
           "label": "Категория",
           "type": "reference",
-          "target": "crm.categories"
+          "target": "crm.categories",
+          "group": "Общие сведения"
+        },
+        {
+          "id": "notes",
+          "label": "Примечания",
+          "type": "multiline",
+          "group": "Общие сведения"
+        },
+        {
+          "id": "full_name",
+          "label": "Полное наименование",
+          "type": "text",
+          "group": "Реквизиты организации",
+          "visible_when": {
+            "field": "type",
+            "equals": "Организация"
+          }
+        },
+        {
+          "id": "legal_form",
+          "label": "Организационно-правовая форма",
+          "type": "text",
+          "group": "Реквизиты организации",
+          "visible_when": {
+            "field": "type",
+            "equals": "Организация"
+          }
+        },
+        {
+          "id": "inn",
+          "label": "ИНН",
+          "type": "text",
+          "group": "Реквизиты организации",
+          "visible_when": {
+            "field": "type",
+            "equals": "Организация"
+          }
+        },
+        {
+          "id": "kpp",
+          "label": "КПП",
+          "type": "text",
+          "group": "Реквизиты организации",
+          "visible_when": {
+            "field": "type",
+            "equals": "Организация"
+          }
+        },
+        {
+          "id": "ogrn",
+          "label": "ОГРН / ОГРНИП",
+          "type": "text",
+          "group": "Реквизиты организации",
+          "visible_when": {
+            "field": "type",
+            "equals": "Организация"
+          }
+        },
+        {
+          "id": "okpo",
+          "label": "ОКПО",
+          "type": "text",
+          "group": "Реквизиты организации",
+          "visible_when": {
+            "field": "type",
+            "equals": "Организация"
+          }
+        },
+        {
+          "id": "okved",
+          "label": "Основной ОКВЭД",
+          "type": "text",
+          "group": "Реквизиты организации",
+          "visible_when": {
+            "field": "type",
+            "equals": "Организация"
+          }
+        },
+        {
+          "id": "tax_system",
+          "label": "Система налогообложения",
+          "type": "select",
+          "options": [
+            "Не указана",
+            "ОСНО",
+            "УСН",
+            "ПСН",
+            "ЕСХН",
+            "НПД",
+            "Другая"
+          ],
+          "group": "Реквизиты организации",
+          "visible_when": {
+            "field": "type",
+            "equals": "Организация"
+          }
+        },
+        {
+          "id": "legal_address",
+          "label": "Юридический адрес",
+          "type": "multiline",
+          "group": "Адреса и представители",
+          "visible_when": {
+            "field": "type",
+            "equals": "Организация"
+          }
+        },
+        {
+          "id": "actual_address",
+          "label": "Фактический адрес",
+          "type": "multiline",
+          "group": "Адреса и представители",
+          "visible_when": {
+            "field": "type",
+            "equals": "Организация"
+          }
+        },
+        {
+          "id": "postal_address",
+          "label": "Почтовый адрес",
+          "type": "multiline",
+          "group": "Адреса и представители",
+          "visible_when": {
+            "field": "type",
+            "equals": "Организация"
+          }
+        },
+        {
+          "id": "director_name",
+          "label": "Руководитель: ФИО",
+          "type": "text",
+          "group": "Адреса и представители",
+          "visible_when": {
+            "field": "type",
+            "equals": "Организация"
+          }
+        },
+        {
+          "id": "director_position",
+          "label": "Должность руководителя",
+          "type": "text",
+          "group": "Адреса и представители",
+          "visible_when": {
+            "field": "type",
+            "equals": "Организация"
+          }
+        },
+        {
+          "id": "signing_basis",
+          "label": "Действует на основании",
+          "type": "text",
+          "group": "Адреса и представители",
+          "visible_when": {
+            "field": "type",
+            "equals": "Организация"
+          }
+        },
+        {
+          "id": "website",
+          "label": "Сайт",
+          "type": "text",
+          "group": "Адреса и представители",
+          "visible_when": {
+            "field": "type",
+            "equals": "Организация"
+          }
         }
       ]
     },
@@ -162,20 +327,57 @@
           "type": "multiline"
         },
         {
-          "id": "due_at",
-          "label": "Срок (timestamp, мс)",
-          "type": "datetime"
-        },
-        {
           "id": "repeat",
           "label": "Повторение",
           "type": "select",
           "options": [
-            "Нет",
-            "Ежедневно",
+            "Одноразово",
             "Еженедельно",
             "Ежемесячно"
-          ]
+          ],
+          "required": true
+        },
+        {
+          "id": "once_date",
+          "label": "Дата выполнения",
+          "type": "date",
+          "required": true,
+          "visible_when": {
+            "field": "repeat",
+            "equals": "Одноразово"
+          }
+        },
+        {
+          "id": "weekday",
+          "label": "День недели",
+          "type": "weekday",
+          "required": true,
+          "visible_when": {
+            "field": "repeat",
+            "equals": "Еженедельно"
+          }
+        },
+        {
+          "id": "monthday",
+          "label": "Число месяца",
+          "type": "monthday",
+          "required": true,
+          "visible_when": {
+            "field": "repeat",
+            "equals": "Ежемесячно"
+          }
+        },
+        {
+          "id": "reminder_time",
+          "label": "Время напоминания",
+          "type": "time",
+          "required": true
+        },
+        {
+          "id": "due_at",
+          "label": "Следующее выполнение",
+          "type": "datetime",
+          "hidden": true
         },
         {
           "id": "status",
@@ -213,12 +415,12 @@
         },
         {
           "id": "start_at",
-          "label": "Начало (timestamp, мс)",
+          "label": "Начало работы",
           "type": "datetime"
         },
         {
           "id": "end_at",
-          "label": "Окончание (timestamp, мс)",
+          "label": "Окончание работы",
           "type": "datetime"
         },
         {
@@ -250,6 +452,219 @@
           "type": "reference",
           "target": "crm.categories",
           "required": true
+        }
+      ]
+    },
+    {
+      "id": "bank_accounts",
+      "title": "Банковские счета",
+      "fields": [
+        {
+          "id": "client_id",
+          "label": "Клиент",
+          "type": "reference",
+          "target": "crm.clients",
+          "required": true,
+          "group": "Привязка"
+        },
+        {
+          "id": "title",
+          "label": "Название счёта",
+          "type": "text",
+          "required": true,
+          "group": "Счёт"
+        },
+        {
+          "id": "account_number",
+          "label": "Расчётный счёт",
+          "type": "text",
+          "required": true,
+          "group": "Счёт"
+        },
+        {
+          "id": "currency",
+          "label": "Валюта",
+          "type": "select",
+          "options": [
+            "RUB",
+            "USD",
+            "EUR",
+            "CNY",
+            "Другая"
+          ],
+          "group": "Счёт"
+        },
+        {
+          "id": "is_primary",
+          "label": "Основной счёт",
+          "type": "boolean",
+          "group": "Счёт"
+        },
+        {
+          "id": "bank_name",
+          "label": "Наименование банка",
+          "type": "text",
+          "required": true,
+          "group": "Банк"
+        },
+        {
+          "id": "bik",
+          "label": "БИК",
+          "type": "text",
+          "group": "Банк"
+        },
+        {
+          "id": "correspondent_account",
+          "label": "Корреспондентский счёт",
+          "type": "text",
+          "group": "Банк"
+        },
+        {
+          "id": "bank_address",
+          "label": "Адрес банка",
+          "type": "multiline",
+          "group": "Банк"
+        },
+        {
+          "id": "notes",
+          "label": "Комментарий",
+          "type": "multiline",
+          "group": "Банк"
+        }
+      ]
+    },
+    {
+      "id": "contracts",
+      "title": "Договоры",
+      "fields": [
+        {
+          "id": "client_id",
+          "label": "Клиент",
+          "type": "reference",
+          "target": "crm.clients",
+          "required": true,
+          "group": "Привязка"
+        },
+        {
+          "id": "title",
+          "label": "Название договора",
+          "type": "text",
+          "required": true,
+          "group": "Договор"
+        },
+        {
+          "id": "number",
+          "label": "Номер договора",
+          "type": "text",
+          "required": true,
+          "group": "Договор"
+        },
+        {
+          "id": "contract_type",
+          "label": "Тип",
+          "type": "select",
+          "options": [
+            "Услуги",
+            "Подряд",
+            "Поставка",
+            "Лицензионный",
+            "Сопровождение",
+            "Другой"
+          ],
+          "group": "Договор"
+        },
+        {
+          "id": "subject",
+          "label": "Предмет договора",
+          "type": "multiline",
+          "group": "Договор"
+        },
+        {
+          "id": "signed_at",
+          "label": "Дата подписания",
+          "type": "date",
+          "group": "Сроки"
+        },
+        {
+          "id": "valid_from",
+          "label": "Дата начала действия",
+          "type": "date",
+          "group": "Сроки"
+        },
+        {
+          "id": "valid_until",
+          "label": "Дата окончания действия",
+          "type": "date",
+          "group": "Сроки"
+        },
+        {
+          "id": "auto_renewal",
+          "label": "Автопролонгация",
+          "type": "boolean",
+          "group": "Сроки"
+        },
+        {
+          "id": "status",
+          "label": "Статус",
+          "type": "select",
+          "options": [
+            "Проект",
+            "На согласовании",
+            "Действует",
+            "Истёк",
+            "Расторгнут",
+            "Архив"
+          ],
+          "group": "Сроки"
+        },
+        {
+          "id": "amount",
+          "label": "Сумма договора",
+          "type": "number",
+          "group": "Финансы"
+        },
+        {
+          "id": "currency",
+          "label": "Валюта",
+          "type": "select",
+          "options": [
+            "RUB",
+            "USD",
+            "EUR",
+            "CNY",
+            "Другая"
+          ],
+          "group": "Финансы"
+        },
+        {
+          "id": "payment_terms",
+          "label": "Условия оплаты",
+          "type": "multiline",
+          "group": "Финансы"
+        },
+        {
+          "id": "responsible",
+          "label": "Ответственный",
+          "type": "text",
+          "group": "Дополнительно"
+        },
+        {
+          "id": "signatory",
+          "label": "Подписант клиента",
+          "type": "text",
+          "group": "Дополнительно"
+        },
+        {
+          "id": "document",
+          "label": "Файл договора",
+          "type": "file",
+          "group": "Дополнительно"
+        },
+        {
+          "id": "notes",
+          "label": "Примечания",
+          "type": "multiline",
+          "group": "Дополнительно"
         }
       ]
     }
@@ -323,6 +738,16 @@
       "date_field": "timestamp",
       "setting_plugin": "crm",
       "setting": "no_contact_days"
+    },
+    {
+      "id": "contracts",
+      "title": "Договоры",
+      "collection": "contracts"
+    },
+    {
+      "id": "bank_accounts",
+      "title": "Банковские счета",
+      "collection": "bank_accounts"
     }
   ],
   "settings": [
@@ -377,6 +802,22 @@
       "collection": "crm.client_categories",
       "relation_field": "client_id",
       "priority": 5
+    },
+    {
+      "kind": "detail_tab",
+      "target": "crm.clients.detail.tabs",
+      "title": "Реквизиты и счета",
+      "collection": "crm.bank_accounts",
+      "relation_field": "client_id",
+      "priority": 12
+    },
+    {
+      "kind": "detail_tab",
+      "target": "crm.clients.detail.tabs",
+      "title": "Договоры",
+      "collection": "crm.contracts",
+      "relation_field": "client_id",
+      "priority": 15
     }
   ],
   "hooks": [],

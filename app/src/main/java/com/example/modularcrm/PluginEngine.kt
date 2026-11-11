@@ -93,7 +93,7 @@ class PluginEngine(val context: Context) {
             require(fields.map {it.getString("id")}.distinct().size==fields.size)
             fields.forEach { f ->
                 require(ID.matches(f.getString("id")))
-                require(f.getString("type") in setOf("text","multiline","number","date","datetime","select","reference","boolean"))
+                require(f.getString("type") in setOf("text","multiline","number","date","datetime","time","weekday","monthday","select","reference","boolean","file"))
                 if(f.getString("type")=="reference") require(f.getString("target").matches(Regex("[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*")))
             }
         }
@@ -166,6 +166,12 @@ class PluginEngine(val context: Context) {
             check(json);return json
         }finally{temp.delete()}
     }
+    private fun compareVersions(a:String,b:String):Int {
+        val pattern=Regex("^(\\d+)\\.(\\d+)\\.(\\d+)$")
+        val aa=pattern.matchEntire(a)?.groupValues?.drop(1)?.map{it.toIntOrNull()?:0} ?: error("Версия должна быть X.Y.Z")
+        val bb=pattern.matchEntire(b)?.groupValues?.drop(1)?.map{it.toIntOrNull()?:0} ?: error("Текущая версия имеет неверный формат")
+        return aa.zip(bb).firstOrNull{it.first!=it.second}?.let{it.first.compareTo(it.second)}?:0
+    }
     fun install(uri:Uri, approvedWrites:Set<String> = emptySet()):Plugin {
         val tmp=File.createTempFile("incoming_",".mcrm",directory)
         try {
@@ -176,16 +182,46 @@ class PluginEngine(val context: Context) {
             // Read ID from manifest before creating its canonical destination.
             val id=ZipFile(tmp).use{zip-> val e=zip.getEntry("manifest.json")?:error("Нет manifest.json"); val b=zip.getInputStream(e).use{it.readBytes()};require(b.size<=256_000);JSONObject(String(b)).getString("id")}
             require(ID.matches(id));val target=File(directory,"$id.mcrm")
-            require(!target.exists()) {"Плагин уже установлен"}
-            require(tmp.renameTo(target))
-            return try {
-                val result=parse(target)
-                require(result.writePermissions.all { it in approvedWrites }) {"Не выдано разрешение на изменение коллекций: ${result.writePermissions}"}
-                context.getSharedPreferences("plugin_permissions",Context.MODE_PRIVATE).edit()
-                    .putStringSet(result.id,approvedWrites.toSet()).apply()
-                require(result.dependencies.all { dep->plugins.any {it.id==dep} }) {"Сначала установите зависимости: ${result.dependencies}"}
-                reload();require(plugins.any{it.id==id}) {"Плагин не активирован"};result
-            } catch(e:Exception){target.delete();reload();throw e}
+            // Validate in a canonical-name staging directory before touching the installed archive.
+            val stageDir=File(context.cacheDir,"mcrm_stage").apply{mkdirs()}
+            val staged=File(stageDir,"$id.mcrm")
+            tmp.copyTo(staged,overwrite=true)
+            try {
+                val incoming=parse(staged)
+                val current=plugins.firstOrNull{it.id==id}
+                if(current!=null) {
+                    require(compareVersions(incoming.manifest.str("version"),current.manifest.str("version"))>0) {
+                        "Установлена версия ${current.manifest.str("version")}. Для обновления нужна более новая версия"
+                    }
+                    val oldCollections=current.collections.map{it.str("id")}.toSet()
+                    val newCollections=incoming.collections.map{it.str("id")}.toSet()
+                    require(newCollections.containsAll(oldCollections)) {"Обновление удаляет коллекции: ${oldCollections-newCollections}. Требуется миграция"}
+                    for(oldCollection in current.collections) {
+                        val newest=incoming.collections.first{it.str("id")==oldCollection.str("id")}
+                        val oldFields=oldCollection.array("fields").map{it.str("id")}.toSet()
+                        val newFields=newest.array("fields").map{it.str("id")}.toSet()
+                        require(newFields.containsAll(oldFields)) {"Удалены поля коллекции ${oldCollection.str("id")}. Нужна миграция"}
+                    }
+                }
+                val existingPermissions=context.getSharedPreferences("plugin_permissions",Context.MODE_PRIVATE).getStringSet(id,emptySet()).orEmpty()
+                val allowed=approvedWrites+existingPermissions
+                require(incoming.writePermissions.all{it in allowed}) {"Требуется разрешение на изменение данных: ${incoming.writePermissions}"}
+                require(incoming.dependencies.all{dep->dep==id || plugins.any{it.id==dep}}) {"Не установлены зависимости: ${incoming.dependencies}"}
+                val backup=File(directory,"$id.mcrm.backup")
+                if(target.exists())target.copyTo(backup,overwrite=true)
+                try {
+                    staged.copyTo(target,overwrite=true)
+                    reload()
+                    require(plugins.any{it.id==id}) {"Новый плагин не загрузился"}
+                    context.getSharedPreferences("plugin_permissions",Context.MODE_PRIVATE).edit().putStringSet(id,allowed).apply()
+                    backup.delete()
+                    return incoming.copy(file=target)
+                }catch(e:Exception){
+                    if(backup.exists())backup.copyTo(target,overwrite=true) else target.delete()
+                    reload()
+                    throw e
+                }finally{backup.delete()}
+            }finally{staged.delete()}
         } finally{tmp.delete()}
     }
     fun remove(id:String) {

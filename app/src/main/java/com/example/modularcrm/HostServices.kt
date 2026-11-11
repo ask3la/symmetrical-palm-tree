@@ -54,23 +54,33 @@ object HostServices {
         val title=record.data.optString(step.str("title_field","title"),"Напоминание")
         val description=record.data.optString(step.str("description_field","description"))
         val repeat=record.data.optString(step.str("repeat_field","repeat"),"Нет")
-        val next=if(at>System.currentTimeMillis())at else nextOccurrence(at,repeat)
-        if(next>System.currentTimeMillis())schedule(context,record.id,title,description,next,repeat)
+        val monthDay=record.data.optString("monthday").toIntOrNull()
+        val next=if(at>System.currentTimeMillis())at else nextOccurrence(at,repeat,monthDay)
+        if(next>System.currentTimeMillis())schedule(context,record.id,title,description,next,repeat,monthDay)
+        else cancel(context,record.id)
     }
-    private fun nextOccurrence(from:Long,frequency:String):Long {
+    fun nextOccurrence(from:Long,frequency:String,monthDay:Int?=null):Long {
         if(frequency=="Нет")return 0L
         var date=java.time.Instant.ofEpochMilli(from).atZone(java.time.ZoneId.systemDefault())
         repeat(10000) {
-            date=when(frequency){"Ежедневно"->date.plusDays(1);"Еженедельно"->date.plusWeeks(1);"Ежемесячно"->date.plusMonths(1);else->return 0L}
+            date=when(frequency){"Ежедневно"->date.plusDays(1);"Еженедельно"->date.plusWeeks(1);"Ежемесячно"->{
+                val month=java.time.YearMonth.from(date).plusMonths(1)
+                month.atDay((monthDay?:date.dayOfMonth).coerceIn(1,month.lengthOfMonth())).atTime(date.toLocalTime()).atZone(date.zone)
+            };else->return 0L}
             if(date.toInstant().toEpochMilli()>System.currentTimeMillis())return date.toInstant().toEpochMilli()
         }
         return 0L
     }
-    fun schedule(context:Context,id:Long,title:String,description:String,atMillis:Long,repeat:String="Нет") {
-        val intent=Intent(context,ReminderReceiver::class.java).putExtra("title",title).putExtra("description",description).putExtra("repeat",repeat).putExtra("at",atMillis).putExtra("reminder_id",id)
+    fun schedule(context:Context,id:Long,title:String,description:String,atMillis:Long,repeat:String="Нет",monthDay:Int?=null) {
+        val intent=Intent(context,ReminderReceiver::class.java).putExtra("title",title).putExtra("description",description).putExtra("repeat",repeat).putExtra("at",atMillis).putExtra("reminder_id",id).putExtra("month_day",monthDay?:0)
         val pi=PendingIntent.getBroadcast(context,id.toInt(),intent,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val alarm=context.getSystemService(AlarmManager::class.java)
         alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,atMillis,pi)
+    }
+    fun cancel(context:Context,id:Long) {
+        val intent=Intent(context,ReminderReceiver::class.java)
+        val pi=PendingIntent.getBroadcast(context,id.toInt(),intent,PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)
+        if(pi!=null){context.getSystemService(AlarmManager::class.java).cancel(pi);pi.cancel()}
     }
 }
 class ReminderReceiver:BroadcastReceiver() {
@@ -81,12 +91,7 @@ class ReminderReceiver:BroadcastReceiver() {
         val repeat=intent.getStringExtra("repeat")?:"Нет"
         val from=intent.getLongExtra("at",0L)
         val id=intent.getLongExtra("reminder_id",0L)
-        val next=when(repeat) {
-            "Ежедневно"->java.time.Instant.ofEpochMilli(from).atZone(java.time.ZoneId.systemDefault()).plusDays(1).toInstant().toEpochMilli()
-            "Еженедельно"->java.time.Instant.ofEpochMilli(from).atZone(java.time.ZoneId.systemDefault()).plusWeeks(1).toInstant().toEpochMilli()
-            "Ежемесячно"->java.time.Instant.ofEpochMilli(from).atZone(java.time.ZoneId.systemDefault()).plusMonths(1).toInstant().toEpochMilli()
-            else->0L
-        }
-        if(next>0L)HostServices.schedule(context,id,title,description,next,repeat)
+        val next=HostServices.nextOccurrence(from,repeat,intent.getIntExtra("month_day",0).takeIf{it in 1..31})
+        if(next>0L)HostServices.schedule(context,id,title,description,next,repeat,intent.getIntExtra("month_day",0).takeIf{it in 1..31})
     }
 }
