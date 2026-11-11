@@ -1,0 +1,157 @@
+{
+  "api": 2,
+  "id": "hardware",
+  "name": "Оборудование",
+  "version": "1.0.0",
+  "depends": [
+    "crm"
+  ],
+  "collections": [
+    {
+      "id": "devices",
+      "title": "Серверы и рабочие станции",
+      "fields": [
+        {
+          "id": "client_id",
+          "label": "Владелец",
+          "type": "reference",
+          "target": "crm.clients",
+          "required": true
+        },
+        {
+          "id": "name",
+          "label": "Наименование",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "device_type",
+          "label": "Тип",
+          "type": "select",
+          "options": [
+            "Сервер",
+            "Рабочая станция",
+            "Ноутбук",
+            "Сетевое устройство",
+            "Другое"
+          ]
+        },
+        {
+          "id": "hostname",
+          "label": "Имя хоста",
+          "type": "text"
+        },
+        {
+          "id": "ip",
+          "label": "IP-адрес",
+          "type": "text"
+        },
+        {
+          "id": "serial",
+          "label": "Серийный номер",
+          "type": "text"
+        },
+        {
+          "id": "os",
+          "label": "ОС",
+          "type": "text"
+        },
+        {
+          "id": "location",
+          "label": "Местоположение",
+          "type": "text"
+        },
+        {
+          "id": "notes",
+          "label": "Примечания",
+          "type": "multiline"
+        }
+      ]
+    },
+    {
+      "id": "service",
+      "title": "Обслуживание оборудования",
+      "fields": [
+        {
+          "id": "device_id",
+          "label": "Устройство",
+          "type": "reference",
+          "target": "hardware.devices",
+          "required": true
+        },
+        {
+          "id": "title",
+          "label": "Работа",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "details",
+          "label": "Описание",
+          "type": "multiline"
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "devices",
+      "title": "Устройства",
+      "collection": "devices"
+    },
+    {
+      "id": "service",
+      "title": "Обслуживание",
+      "collection": "service"
+    }
+  ],
+  "extensions": [
+    {
+      "kind": "detail_tab",
+      "target": "crm.clients.detail.tabs",
+      "title": "Оборудование",
+      "collection": "hardware.devices",
+      "relation_field": "client_id",
+      "priority": 50
+    },
+    {
+      "kind": "form_field",
+      "target": "crm.clients.form.fields",
+      "field": {
+        "id": "inventory_note",
+        "label": "Примечание по ИТ-оборудованию",
+        "type": "multiline"
+      }
+    },
+    {
+      "kind": "field_patch",
+      "target": "crm.clients.form.fields",
+      "field": "notes",
+      "label": "Заметки о клиенте"
+    }
+  ],
+  "permissions": {
+    "write": [
+      "crm.interactions"
+    ]
+  },
+  "hooks": [
+    {
+      "event": "hardware.devices.created",
+      "steps": [
+        {
+          "type": "create",
+          "collection": "crm.interactions",
+          "values": {
+            "client_id": "${event.client_id}",
+            "title": "Оборудование добавлено",
+            "kind": "Другое",
+            "description": "В реестр добавлено устройство ${event.name}"
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [],
+  "settings": []
+}

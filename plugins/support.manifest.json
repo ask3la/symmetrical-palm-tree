@@ -1,0 +1,101 @@
+{
+  "api": 2,
+  "id": "support",
+  "name": "Сервисные работы",
+  "version": "1.0.0",
+  "depends": [
+    "crm"
+  ],
+  "collections": [
+    {
+      "id": "tickets",
+      "title": "Обращения",
+      "fields": [
+        {
+          "id": "client_id",
+          "label": "Клиент",
+          "type": "reference",
+          "target": "crm.clients",
+          "required": true
+        },
+        {
+          "id": "title",
+          "label": "Тема",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "priority",
+          "label": "Приоритет",
+          "type": "select",
+          "options": [
+            "Низкий",
+            "Обычный",
+            "Высокий"
+          ]
+        },
+        {
+          "id": "description",
+          "label": "Описание",
+          "type": "multiline"
+        },
+        {
+          "id": "status",
+          "label": "Статус",
+          "type": "select",
+          "options": [
+            "Открыто",
+            "В работе",
+            "Закрыто"
+          ]
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "tickets",
+      "title": "Обращения",
+      "collection": "tickets"
+    }
+  ],
+  "extensions": [
+    {
+      "kind": "detail_tab",
+      "target": "crm.clients.detail.tabs",
+      "title": "Обращения",
+      "collection": "support.tickets",
+      "relation_field": "client_id",
+      "priority": 80
+    },
+    {
+      "kind": "detail_action",
+      "target": "crm.clients.detail.actions",
+      "owner": "support",
+      "action": "mark_vip",
+      "title": "Отметить как VIP"
+    }
+  ],
+  "permissions": {
+    "write": [
+      "crm.clients"
+    ]
+  },
+  "actions": [
+    {
+      "id": "mark_vip",
+      "steps": [
+        {
+          "type": "set_field",
+          "collection": "crm.clients",
+          "id": "${record.id}",
+          "values": {
+            "notes": "VIP (из плагина поддержки)"
+          }
+        }
+      ]
+    }
+  ],
+  "hooks": [],
+  "settings": []
+}

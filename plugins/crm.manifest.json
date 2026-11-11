@@ -1,0 +1,437 @@
+{
+  "api": 2,
+  "id": "crm",
+  "name": "Клиенты (CRM)",
+  "version": "2.0.0",
+  "depends": [],
+  "collections": [
+    {
+      "id": "clients",
+      "title": "Клиенты",
+      "fields": [
+        {
+          "id": "name",
+          "label": "Название / ФИО",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "type",
+          "label": "Тип клиента",
+          "type": "select",
+          "options": [
+            "Организация",
+            "Физическое лицо"
+          ],
+          "required": true
+        },
+        {
+          "id": "phone",
+          "label": "Телефон",
+          "type": "text"
+        },
+        {
+          "id": "email",
+          "label": "Email",
+          "type": "text"
+        },
+        {
+          "id": "notes",
+          "label": "Примечания",
+          "type": "multiline"
+        },
+        {
+          "id": "category_id",
+          "label": "Категория",
+          "type": "reference",
+          "target": "crm.categories"
+        }
+      ]
+    },
+    {
+      "id": "categories",
+      "title": "Категории",
+      "fields": [
+        {
+          "id": "name",
+          "label": "Название категории",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "description",
+          "label": "Описание",
+          "type": "multiline"
+        }
+      ]
+    },
+    {
+      "id": "contacts",
+      "title": "Контактные лица",
+      "fields": [
+        {
+          "id": "client_id",
+          "label": "Клиент",
+          "type": "reference",
+          "target": "crm.clients",
+          "required": true
+        },
+        {
+          "id": "fullname",
+          "label": "ФИО",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "position",
+          "label": "Должность",
+          "type": "text"
+        },
+        {
+          "id": "phone",
+          "label": "Телефон",
+          "type": "text"
+        },
+        {
+          "id": "email",
+          "label": "Email",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "id": "interactions",
+      "title": "Контакты и события",
+      "fields": [
+        {
+          "id": "client_id",
+          "label": "Клиент",
+          "type": "reference",
+          "target": "crm.clients",
+          "required": true
+        },
+        {
+          "id": "title",
+          "label": "Название",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "kind",
+          "label": "Тип",
+          "type": "select",
+          "options": [
+            "Звонок",
+            "Встреча",
+            "Письмо",
+            "Другое"
+          ]
+        },
+        {
+          "id": "timestamp",
+          "label": "Дата и время",
+          "type": "datetime"
+        },
+        {
+          "id": "description",
+          "label": "Описание",
+          "type": "multiline"
+        }
+      ]
+    },
+    {
+      "id": "tasks",
+      "title": "Задачи",
+      "fields": [
+        {
+          "id": "client_id",
+          "label": "Клиент",
+          "type": "reference",
+          "target": "crm.clients",
+          "required": true
+        },
+        {
+          "id": "title",
+          "label": "Задача",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "description",
+          "label": "Что нужно сделать",
+          "type": "multiline"
+        },
+        {
+          "id": "due_at",
+          "label": "Срок (timestamp, мс)",
+          "type": "datetime"
+        },
+        {
+          "id": "repeat",
+          "label": "Повторение",
+          "type": "select",
+          "options": [
+            "Нет",
+            "Ежедневно",
+            "Еженедельно",
+            "Ежемесячно"
+          ]
+        },
+        {
+          "id": "status",
+          "label": "Статус",
+          "type": "select",
+          "options": [
+            "Новая",
+            "В работе",
+            "Выполнена"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "works",
+      "title": "Работы",
+      "fields": [
+        {
+          "id": "client_id",
+          "label": "Клиент",
+          "type": "reference",
+          "target": "crm.clients",
+          "required": true
+        },
+        {
+          "id": "title",
+          "label": "Работа",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "description",
+          "label": "Описание",
+          "type": "multiline"
+        },
+        {
+          "id": "start_at",
+          "label": "Начало (timestamp, мс)",
+          "type": "datetime"
+        },
+        {
+          "id": "end_at",
+          "label": "Окончание (timestamp, мс)",
+          "type": "datetime"
+        },
+        {
+          "id": "status",
+          "label": "Статус",
+          "type": "select",
+          "options": [
+            "Запланирована",
+            "Выполнена",
+            "Отменена"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "client_categories",
+      "title": "Категории клиента",
+      "fields": [
+        {
+          "id": "client_id",
+          "label": "Клиент",
+          "type": "reference",
+          "target": "crm.clients",
+          "required": true
+        },
+        {
+          "id": "category_id",
+          "label": "Категория",
+          "type": "reference",
+          "target": "crm.categories",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "clients",
+      "title": "Клиенты",
+      "collection": "clients"
+    },
+    {
+      "id": "categories",
+      "title": "Категории",
+      "collection": "categories"
+    },
+    {
+      "id": "contacts",
+      "title": "Контактные лица",
+      "collection": "contacts"
+    },
+    {
+      "id": "tasks",
+      "title": "Задачи",
+      "collection": "tasks"
+    },
+    {
+      "id": "works",
+      "title": "Работы",
+      "collection": "works"
+    },
+    {
+      "id": "interactions",
+      "title": "События",
+      "collection": "interactions"
+    },
+    {
+      "id": "statistics",
+      "title": "Статистика",
+      "kind": "metrics",
+      "collection": "clients",
+      "targets": [
+        {
+          "title": "Всего клиентов",
+          "collection": "crm.clients"
+        },
+        {
+          "title": "Контактных лиц",
+          "collection": "crm.contacts"
+        },
+        {
+          "title": "Задач",
+          "collection": "crm.tasks"
+        },
+        {
+          "title": "Работ",
+          "collection": "crm.works"
+        },
+        {
+          "title": "Событий",
+          "collection": "crm.interactions"
+        }
+      ]
+    },
+    {
+      "id": "inactive",
+      "title": "Давно не связывались",
+      "kind": "stale",
+      "collection": "crm.clients",
+      "activity_collection": "crm.interactions",
+      "link_field": "client_id",
+      "date_field": "timestamp",
+      "setting_plugin": "crm",
+      "setting": "no_contact_days"
+    }
+  ],
+  "settings": [
+    {
+      "id": "no_contact_days",
+      "title": "Дней без контакта",
+      "default": "30"
+    },
+    {
+      "id": "default_calendar",
+      "title": "ID календаря (необязательно)",
+      "default": ""
+    }
+  ],
+  "extensions": [
+    {
+      "kind": "detail_tab",
+      "target": "crm.clients.detail.tabs",
+      "title": "Контакты",
+      "collection": "crm.contacts",
+      "relation_field": "client_id",
+      "priority": 10
+    },
+    {
+      "kind": "detail_tab",
+      "target": "crm.clients.detail.tabs",
+      "title": "Задачи",
+      "collection": "crm.tasks",
+      "relation_field": "client_id",
+      "priority": 20
+    },
+    {
+      "kind": "detail_tab",
+      "target": "crm.clients.detail.tabs",
+      "title": "Работы",
+      "collection": "crm.works",
+      "relation_field": "client_id",
+      "priority": 30
+    },
+    {
+      "kind": "detail_tab",
+      "target": "crm.clients.detail.tabs",
+      "title": "История",
+      "collection": "crm.interactions",
+      "relation_field": "client_id",
+      "priority": 40
+    },
+    {
+      "kind": "detail_tab",
+      "target": "crm.clients.detail.tabs",
+      "title": "Категории",
+      "collection": "crm.client_categories",
+      "relation_field": "client_id",
+      "priority": 5
+    }
+  ],
+  "hooks": [],
+  "actions": [
+    {
+      "id": "on_work_created",
+      "trigger": "works.created",
+      "steps": [
+        {
+          "type": "calendar_upsert",
+          "title_field": "title",
+          "description_field": "description",
+          "start_field": "start_at",
+          "end_field": "end_at"
+        }
+      ]
+    },
+    {
+      "id": "on_work_updated",
+      "trigger": "works.updated",
+      "steps": [
+        {
+          "type": "calendar_upsert",
+          "title_field": "title",
+          "description_field": "description",
+          "start_field": "start_at",
+          "end_field": "end_at"
+        }
+      ]
+    },
+    {
+      "id": "on_task_created",
+      "trigger": "tasks.created",
+      "steps": [
+        {
+          "type": "schedule_reminder",
+          "time_field": "due_at",
+          "title_field": "title",
+          "description_field": "description",
+          "repeat_field": "repeat"
+        }
+      ]
+    },
+    {
+      "id": "on_task_updated",
+      "trigger": "tasks.updated",
+      "steps": [
+        {
+          "type": "schedule_reminder",
+          "time_field": "due_at",
+          "title_field": "title",
+          "description_field": "description",
+          "repeat_field": "repeat"
+        }
+      ]
+    }
+  ]
+}

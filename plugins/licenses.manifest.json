@@ -1,0 +1,134 @@
+{
+  "api": 2,
+  "id": "licenses",
+  "name": "ПО и лицензии",
+  "version": "1.0.0",
+  "depends": [
+    "crm"
+  ],
+  "collections": [
+    {
+      "id": "software",
+      "title": "Программное обеспечение",
+      "fields": [
+        {
+          "id": "client_id",
+          "label": "Клиент",
+          "type": "reference",
+          "target": "crm.clients",
+          "required": true
+        },
+        {
+          "id": "name",
+          "label": "Программа",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "version",
+          "label": "Версия",
+          "type": "text"
+        },
+        {
+          "id": "vendor",
+          "label": "Разработчик",
+          "type": "text"
+        },
+        {
+          "id": "device_id",
+          "label": "Устройство",
+          "type": "reference",
+          "target": "hardware.devices"
+        },
+        {
+          "id": "notes",
+          "label": "Примечания",
+          "type": "multiline"
+        }
+      ]
+    },
+    {
+      "id": "keys",
+      "title": "Лицензионные ключи",
+      "fields": [
+        {
+          "id": "client_id",
+          "label": "Клиент",
+          "type": "reference",
+          "target": "crm.clients",
+          "required": true
+        },
+        {
+          "id": "software_id",
+          "label": "ПО",
+          "type": "reference",
+          "target": "licenses.software"
+        },
+        {
+          "id": "title",
+          "label": "Лицензия",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "license_type",
+          "label": "Тип лицензии",
+          "type": "text"
+        },
+        {
+          "id": "activation_code",
+          "label": "Код активации",
+          "type": "text"
+        },
+        {
+          "id": "activated_at",
+          "label": "Дата активации",
+          "type": "date"
+        },
+        {
+          "id": "expires_at",
+          "label": "Истекает",
+          "type": "date"
+        },
+        {
+          "id": "notes",
+          "label": "Описание",
+          "type": "multiline"
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "software",
+      "title": "Программы",
+      "collection": "software"
+    },
+    {
+      "id": "keys",
+      "title": "Лицензии",
+      "collection": "keys"
+    }
+  ],
+  "extensions": [
+    {
+      "kind": "detail_tab",
+      "target": "crm.clients.detail.tabs",
+      "title": "ПО",
+      "collection": "licenses.software",
+      "relation_field": "client_id",
+      "priority": 60
+    },
+    {
+      "kind": "detail_tab",
+      "target": "crm.clients.detail.tabs",
+      "title": "Лицензии",
+      "collection": "licenses.keys",
+      "relation_field": "client_id",
+      "priority": 70
+    }
+  ],
+  "hooks": [],
+  "actions": [],
+  "settings": []
+}
