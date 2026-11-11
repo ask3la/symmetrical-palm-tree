@@ -1,0 +1,132 @@
+{
+  "api": 2,
+  "id": "sysadmin",
+  "name": "Инструменты сисадмина",
+  "version": "1.0.0",
+  "depends": [
+    "crm",
+    "hardware"
+  ],
+  "collections": [
+    {
+      "id": "monitors",
+      "title": "Проверки доступности",
+      "fields": [
+        {
+          "id": "device_id",
+          "label": "Оборудование клиента",
+          "type": "reference",
+          "target": "hardware.devices",
+          "required": true
+        },
+        {
+          "id": "method",
+          "label": "Способ проверки",
+          "type": "select",
+          "options": [
+            "ICMP",
+            "TCP",
+            "UDP",
+            "HTTP",
+            "HTTPS"
+          ],
+          "required": true
+        },
+        {
+          "id": "host_override",
+          "label": "Адрес (необязательно, по умолчанию IP устройства)",
+          "type": "text"
+        },
+        {
+          "id": "port",
+          "label": "Порт (TCP/UDP/HTTP/HTTPS)",
+          "type": "number"
+        },
+        {
+          "id": "path",
+          "label": "Путь HTTP(S), например /health",
+          "type": "text"
+        },
+        {
+          "id": "expected_code",
+          "label": "Ожидаемый HTTP-код, например 200",
+          "type": "number"
+        },
+        {
+          "id": "enabled",
+          "label": "Проверять автоматически",
+          "type": "boolean"
+        },
+        {
+          "id": "notes",
+          "label": "Описание/комментарий",
+          "type": "multiline"
+        }
+      ]
+    },
+    {
+      "id": "checks",
+      "title": "Журнал проверок",
+      "fields": [
+        {
+          "id": "monitor_id",
+          "label": "Проверка",
+          "type": "reference",
+          "target": "sysadmin.monitors"
+        },
+        {
+          "id": "checked_at",
+          "label": "Дата проверки",
+          "type": "datetime"
+        },
+        {
+          "id": "status",
+          "label": "Результат",
+          "type": "select",
+          "options": [
+            "Доступен",
+            "Недоступен",
+            "Неопределённо",
+            "Ошибка"
+          ]
+        },
+        {
+          "id": "details",
+          "label": "Подробности",
+          "type": "multiline"
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "tools",
+      "title": "Сеть",
+      "kind": "native_tool",
+      "tool": "network"
+    },
+    {
+      "id": "monitors",
+      "title": "Мониторинг",
+      "collection": "monitors"
+    },
+    {
+      "id": "checks",
+      "title": "Журнал",
+      "collection": "checks"
+    }
+  ],
+  "extensions": [
+    {
+      "kind": "detail_tab",
+      "target": "hardware.devices.detail.tabs",
+      "title": "Проверки",
+      "collection": "sysadmin.monitors",
+      "relation_field": "device_id",
+      "priority": 40
+    }
+  ],
+  "actions": [],
+  "hooks": [],
+  "settings": []
+}

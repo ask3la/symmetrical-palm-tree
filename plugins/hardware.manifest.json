@@ -2,7 +2,7 @@
   "api": 2,
   "id": "hardware",
   "name": "Оборудование",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "depends": [
     "crm"
   ],
@@ -43,7 +43,12 @@
         },
         {
           "id": "ip",
-          "label": "IP-адрес",
+          "label": "Локальный IP (IPv4)",
+          "type": "text"
+        },
+        {
+          "id": "public_ip",
+          "label": "Публичный IP (IPv4/IPv6 или DNS)",
           "type": "text"
         },
         {

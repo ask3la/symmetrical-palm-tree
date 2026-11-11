@@ -102,6 +102,7 @@ class PluginEngine(val context: Context) {
             require(ID.matches(p.getString("id")))
             when(p.str("kind","collection")) {
                 "collection","metrics" -> require(p.getString("collection") in local)
+                "native_tool" -> require(id=="sysadmin" && p.str("tool")=="network")
                 "stale" -> require(p.getString("collection").contains('.') && p.getString("activity_collection").contains('.'))
                 else -> error("Неизвестный тип раздела")
             }

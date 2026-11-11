@@ -61,6 +61,7 @@ class MainActivity:ComponentActivity() {
     override fun onCreate(savedInstanceState:Bundle?) {
         super.onCreate(savedInstanceState)
         val engine=PluginEngine(applicationContext)
+        NetworkDiagnostics.schedule(applicationContext)
         val security=PinSecurity(this)
         val preferences=getSharedPreferences("workspace_ui",MODE_PRIVATE)
         setContent {
@@ -221,6 +222,7 @@ class MainActivity:ComponentActivity() {
                     "settings" -> SettingsScreen(engine,refresh,themeMode,onTheme)
                     else -> if(actualPage!=null && active!=null) {
                         when(actualPage.str("kind","collection")) {
+                            "native_tool" -> NetworkToolsScreen(engine)
                             "stale" -> StaleScreen(engine,actualPage,refresh)
                             "metrics" -> MetricsScreen(engine,actualPage,refresh)
                             else -> CollectionScreen(engine,"${active.id}.${actualPage.str("collection")}",refresh)
